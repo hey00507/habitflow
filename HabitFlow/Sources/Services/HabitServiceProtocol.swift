@@ -1,6 +1,6 @@
 import Foundation
 
-protocol HabitServiceProtocol {
+protocol HabitServiceProtocol: Sendable {
     // MARK: - Habits
     func createHabit(_ habit: Habit) async throws -> Habit
     func fetchHabits() async throws -> [Habit]

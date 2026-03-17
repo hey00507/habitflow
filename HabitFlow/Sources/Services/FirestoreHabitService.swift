@@ -2,7 +2,7 @@ import Foundation
 import FirebaseAuth
 import FirebaseFirestore
 
-final class FirestoreHabitService: HabitServiceProtocol {
+final class FirestoreHabitService: HabitServiceProtocol, @unchecked Sendable {
     private let db = Firestore.firestore()
 
     private var userId: String {
@@ -30,7 +30,11 @@ final class FirestoreHabitService: HabitServiceProtocol {
         let snapshot = try await habitsCollection
             .whereField("isArchived", isEqualTo: false)
             .getDocuments()
-        return snapshot.documents.compactMap { try? $0.data(as: Habit.self) }
+        return snapshot.documents.compactMap { doc in
+            var habit = try? doc.data(as: Habit.self)
+            habit?.id = doc.documentID
+            return habit
+        }
     }
 
     func updateHabit(_ habit: Habit) async throws {
@@ -39,19 +43,16 @@ final class FirestoreHabitService: HabitServiceProtocol {
     }
 
     func deleteHabit(_ habitId: String) async throws {
-        // 서브컬렉션(logs) 삭제
         let logSnapshots = try await logsCollection(habitId: habitId).getDocuments()
         for doc in logSnapshots.documents {
             try await doc.reference.delete()
         }
-        // 습관 문서 삭제
         try await habitsCollection.document(habitId).delete()
     }
 
     // MARK: - Logs
 
     func createLog(_ log: HabitLog, habitId: String) async throws {
-        // date를 문서 ID로 사용하여 같은 날짜 중복 방지
         try logsCollection(habitId: habitId).document(log.date).setData(from: log)
     }
 
@@ -60,7 +61,11 @@ final class FirestoreHabitService: HabitServiceProtocol {
             .whereField("date", isGreaterThanOrEqualTo: from)
             .whereField("date", isLessThanOrEqualTo: to)
             .getDocuments()
-        return snapshot.documents.compactMap { try? $0.data(as: HabitLog.self) }
+        return snapshot.documents.compactMap { doc in
+            var log = try? doc.data(as: HabitLog.self)
+            log?.id = doc.documentID
+            return log
+        }
     }
 
     func deleteLog(habitId: String, date: String) async throws {

@@ -1,8 +1,7 @@
 import Foundation
-import FirebaseFirestore
 
-struct Habit: Codable, Identifiable {
-    @DocumentID var id: String?
+struct Habit: Codable, Identifiable, Sendable, Hashable {
+    var id: String?
     var name: String
     var icon: String          // SF Symbol name
     var color: String         // hex (e.g. "#FF5733")
@@ -11,12 +10,16 @@ struct Habit: Codable, Identifiable {
     var createdAt: Date
     var isArchived: Bool
 
+    enum CodingKeys: String, CodingKey {
+        case name, icon, color, schedule, targetTime, createdAt, isArchived
+    }
+
     init(
         id: String? = nil,
         name: String,
         icon: String = "star.fill",
         color: String = "#4CAF50",
-        schedule: [Int] = [2, 3, 4, 5, 6], // 월~금
+        schedule: [Int] = [2, 3, 4, 5, 6],
         targetTime: String? = nil,
         createdAt: Date = .now,
         isArchived: Bool = false

@@ -2,15 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
-            Text("HabitFlow")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .navigationTitle("HabitFlow")
-        }
+        HabitListView(viewModel: HabitListViewModel(service: FirestoreHabitService()))
     }
 }
 
 #Preview {
-    ContentView()
+    HabitListView(viewModel: HabitListViewModel(service: MockHabitService()))
 }
