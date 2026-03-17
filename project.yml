@@ -40,4 +40,5 @@ targets:
       - target: HabitFlow
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "6.0"
