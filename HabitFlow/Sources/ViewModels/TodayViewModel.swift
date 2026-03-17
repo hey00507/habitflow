@@ -13,6 +13,8 @@ struct TodayHabitItem: Identifiable {
 final class TodayViewModel {
     private(set) var todayHabits: [TodayHabitItem] = []
     private(set) var isLoading = false
+    private(set) var currentStreak: Int = 0
+    private(set) var longestStreak: Int = 0
 
     private let service: HabitServiceProtocol
 
@@ -63,6 +65,7 @@ final class TodayViewModel {
                 ))
             }
             todayHabits = items
+            await loadStreaks()
         } catch {
             // 에러 시 빈 목록
         }
@@ -102,6 +105,23 @@ final class TodayViewModel {
         } catch {
             // 에러 무시
         }
+    }
+
+    private func loadStreaks() async {
+        // 모든 습관의 로그를 합쳐서 streak 계산
+        var allLogs: [HabitLog] = []
+        for item in todayHabits {
+            guard let habitId = item.habit.id else { continue }
+            if let logs = try? await service.fetchLogs(habitId: habitId, from: "2020-01-01", to: todayString) {
+                allLogs.append(contentsOf: logs)
+            }
+        }
+        // 날짜별로 중복 제거 (하루에 여러 습관 완료해도 1일로 카운트)
+        let uniqueLogs = Dictionary(grouping: allLogs, by: \.date)
+            .map { HabitLog(date: $0.key, isCompleted: true) }
+
+        currentStreak = StreakCalculator.currentStreak(from: uniqueLogs)
+        longestStreak = StreakCalculator.longestStreak(from: uniqueLogs)
     }
 
     private func sortByTargetTime(_ a: Habit, _ b: Habit) -> Bool {

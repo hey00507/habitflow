@@ -55,8 +55,38 @@ struct TodayView: View {
         )
     }
 
+    private var streakSection: some View {
+        HStack(spacing: 24) {
+            VStack(spacing: 4) {
+                Text("\(viewModel.currentStreak)")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.teal)
+                Text("현재 연속")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider().frame(height: 40)
+
+            VStack(spacing: 4) {
+                Text("\(viewModel.longestStreak)")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.orange)
+                Text("최장 기록")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+
     private var todayList: some View {
         List {
+            Section { streakSection }
+
             ForEach(viewModel.todayHabits) { item in
                 TodayHabitRow(item: item) {
                     Task { await viewModel.toggleCheck(item) }
