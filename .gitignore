@@ -36,6 +36,10 @@ Package.resolved
 *.swp
 *~
 
+# === Xcode Project (xcodegen으로 재생성) ===
+*.xcodeproj/
+*.xcworkspace/
+
 # === Misc ===
 *.pem
 .env*
