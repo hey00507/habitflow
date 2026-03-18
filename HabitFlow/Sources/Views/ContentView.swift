@@ -24,6 +24,11 @@ struct ContentView: View {
                     Label("습관", systemImage: "list.bullet")
                 }
 
+            HeatmapView(service: service)
+                .tabItem {
+                    Label("잔디", systemImage: "square.grid.3x3")
+                }
+
             SettingsView(notificationService: notificationService, habitService: service)
                 .tabItem {
                     Label("설정", systemImage: "gearshape")

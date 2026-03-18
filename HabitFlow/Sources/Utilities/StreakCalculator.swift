@@ -59,13 +59,10 @@ enum StreakCalculator {
 
     private static func completedDateSet(from logs: [HabitLog]) -> Set<Date> {
         let calendar = Calendar.current
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-
         return Set(
             logs
                 .filter(\.isCompleted)
-                .compactMap { formatter.date(from: $0.date) }
+                .compactMap { DateFormat.date(from: $0.date) }
                 .map { calendar.startOfDay(for: $0) }
         )
     }
