@@ -157,19 +157,80 @@ users/{userId}/habits/{habitId}/logs/{date}
 
 ### Phase 2 — 알림 (Notifications)
 
-> 습관 시간에 알림을 받는다.
+> 습관 시간에 알림을 받아 실행을 유도하고, 미완료 습관을 리마인드한다.
 
-#### M9. 로컬 알림
+#### 알림 종류
+
+| 유형 | 트리거 | 메시지 형식 | 조건 |
+|------|--------|------------|------|
+| **사전 알림** | targetTime 10분 전 | "{습관명} 할 시간입니다" | targetTime 있는 습관만 |
+| **미완료 개별** | targetTime + N시간 후 (사용자 설정) | "아직 {습관명}을(를) 하지 않았습니다" | targetTime 있고 미체크 시 |
+| **미완료 종합** | 하루 끝 (사용자 설정 시간) | "오늘 아직 N개 습관을 완료하지 않았습니다" | 미체크 습관이 1개 이상일 때 |
+
+#### 알림 조건
+
+- **targetTime 없는 습관**: 사전/개별 미완료 알림 안 보냄, 종합 알림에만 포함
+- **이미 체크한 습관**: 미완료 알림 스킵
+- **해당 요일 아닌 습관**: 모든 알림 스킵
+- **알림 off 습관**: 해당 습관의 모든 알림 스킵
+
+#### M9a. NotificationService + 사전 알림
 
 | # | 작업 | 상세 |
 |---|------|------|
-| 1 | `NotificationService` | UNUserNotificationCenter 기반 |
-| 2 | 습관별 알림 설정 | 각 습관의 목표 시간에 로컬 푸시 |
-| 3 | 알림 메시지 커스텀 | 사용자 지정 메시지 |
-| 4 | 알림 on/off 토글 | 습관별 개별 제어 |
-| 5 | 반복 스케줄 | 설정된 요일에만 알림 |
+| 1 | `NotificationService` 구현 | UNUserNotificationCenter 기반, 권한 요청 |
+| 2 | `NotificationServiceProtocol` 정의 | 테스트용 추상화 |
+| 3 | `MockNotificationService` 구현 | 테스트/프리뷰용 Mock |
+| 4 | 사전 알림 스케줄링 | targetTime - 10분, `UNCalendarNotificationTrigger` (요일 반복) |
+| 5 | Habit 모델 변경 | `isNotificationEnabled: Bool` 추가 |
+| 6 | 습관 CRUD 시 알림 재스케줄링 | 등록/수정/삭제 시 알림 업데이트 |
+| 7 | 테스트 작성 | 스케줄링 로직, 조건 필터링, CRUD 연동 |
 
-**완료 기준:** 설정한 시간에 알림 수신 + 알림 탭 시 앱 해당 습관으로 이동
+**완료 기준:** 습관 등록 → 10분 전 알림 수신 + 습관 삭제 시 알림도 삭제
+
+#### M9b. 미완료 리마인드 알림
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 1 | 미완료 개별 알림 | targetTime + overdueDelay 후 미체크 시 알림 |
+| 2 | 미완료 종합 알림 | dailySummaryTime에 미체크 습관 카운트 알림 |
+| 3 | 체크 시 알림 취소 | 완료 체크하면 해당 습관 미완료 알림 제거 |
+| 4 | 테스트 작성 | 체크 후 알림 취소, 종합 알림 카운트 |
+
+**완료 기준:** 미체크 시 개별+종합 리마인드 수신 + 체크 시 알림 취소
+
+#### M9c. 알림 설정 UI
+
+| # | 작업 | 상세 |
+|---|------|------|
+| 1 | HabitFormView 알림 토글 | 습관별 알림 on/off |
+| 2 | Settings 탭 신규 | 전체 알림 마스터 스위치 |
+| 3 | 미완료 개별 알림 시간 설정 | 30분/1시간/2시간 선택 (기본 1시간) |
+| 4 | 종합 알림 시간 설정 | TimePicker (기본 21:00) |
+| 5 | `SettingsViewModel` | 설정 로드/저장 (UserDefaults) |
+| 6 | 테스트 작성 | 설정 변경 시 알림 재스케줄링 |
+
+**완료 기준:** Settings에서 시간 변경 → 알림 스케줄 즉시 반영
+
+#### 데이터 모델 변경
+
+```
+Habit (기존 필드에 추가)
+├── isNotificationEnabled: Bool (기본 true)
+
+NotificationSettings (UserDefaults)
+├── masterEnabled: Bool (기본 true)
+├── overdueDelay: Int (분 단위, 기본 60)
+├── dailySummaryTime: String ("HH:mm", 기본 "21:00")
+```
+
+#### 기술 결정사항
+
+- **플랫폼**: iOS + macOS 양쪽 알림 지원 (중복 감수)
+- **동적 스케줄링**: 앱 실행 시마다 등록된 알림 확인 → 부족하면 다음 7일치 채움 (64개 제한 대응)
+- **종합 알림 메시지**: "오늘 아직 3개 습관을 완료하지 않았습니다 (독서, 러닝, 영어)" 형식
+- **설정 저장**: UserDefaults (알림은 기기 로컬이라 Firestore 동기화 불필요)
+- **알림 식별자 규칙**: `{habitId}-{type}-{weekday}` (type: pre/overdue/summary)
 
 ---
 
@@ -221,6 +282,7 @@ users/{userId}/habits/{habitId}/logs/{date}
 | Service | Firestore CRUD | Mock 기반 90%+ |
 | ViewModel | 비즈니스 로직 | 100% |
 | Utilities | 스트릭/히트맵 계산 | 100% |
+| Notification | 스케줄링/취소 로직 | Mock 기반 90%+ |
 | Widget | 데이터 프로바이더 | 필수 케이스 |
 | View | UI 스냅샷 | 추후 (낮음) |
 
@@ -249,11 +311,13 @@ HabitFlow/
 │   │   ├── Heatmap/           # 잔디 히트맵
 │   │   │   └── HeatmapView.swift
 │   │   ├── Dashboard/         # 통계 (Phase 3)
-│   │   └── Settings/
+│   │   └── Settings/          # 알림 설정 (Phase 2)
+│   │       └── SettingsView.swift
 │   ├── ViewModels/
 │   │   ├── HabitListViewModel.swift
 │   │   ├── TodayViewModel.swift
-│   │   └── HeatmapViewModel.swift
+│   │   ├── HeatmapViewModel.swift
+│   │   └── SettingsViewModel.swift     # Phase 2
 │   ├── Services/
 │   │   ├── HabitServiceProtocol.swift
 │   │   ├── FirestoreHabitService.swift

@@ -9,9 +9,10 @@ struct Habit: Codable, Identifiable, Sendable, Hashable {
     var targetTime: String?   // "HH:mm"
     var createdAt: Date
     var isArchived: Bool
+    var isNotificationEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
-        case name, icon, color, schedule, targetTime, createdAt, isArchived
+        case name, icon, color, schedule, targetTime, createdAt, isArchived, isNotificationEnabled
     }
 
     init(
@@ -22,7 +23,8 @@ struct Habit: Codable, Identifiable, Sendable, Hashable {
         schedule: [Int] = [2, 3, 4, 5, 6],
         targetTime: String? = nil,
         createdAt: Date = .now,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        isNotificationEnabled: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -32,5 +34,6 @@ struct Habit: Codable, Identifiable, Sendable, Hashable {
         self.targetTime = targetTime
         self.createdAt = createdAt
         self.isArchived = isArchived
+        self.isNotificationEnabled = isNotificationEnabled
     }
 }

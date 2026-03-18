@@ -9,6 +9,7 @@ struct HabitFormView: View {
     @State private var schedule: Set<Int>
     @State private var targetTime: Date?
     @State private var hasTargetTime: Bool
+    @State private var isNotificationEnabled: Bool
 
     private let existingHabit: Habit?
     private let onSave: (Habit) -> Void
@@ -35,6 +36,7 @@ struct HabitFormView: View {
         _color = State(initialValue: habit?.color ?? "#4CAF50")
         _schedule = State(initialValue: Set(habit?.schedule ?? [2, 3, 4, 5, 6]))
         _hasTargetTime = State(initialValue: habit?.targetTime != nil)
+        _isNotificationEnabled = State(initialValue: habit?.isNotificationEnabled ?? true)
 
         if let timeStr = habit?.targetTime {
             let parts = timeStr.split(separator: ":").compactMap { Int($0) }
@@ -59,6 +61,7 @@ struct HabitFormView: View {
                 colorSection
                 scheduleSection
                 timeSection
+                notificationSection
             }
             .navigationTitle(existingHabit == nil ? "새 습관" : "습관 수정")
             .navigationBarTitleDisplayMode(.inline)
@@ -158,6 +161,12 @@ struct HabitFormView: View {
         }
     }
 
+    private var notificationSection: some View {
+        Section("알림") {
+            Toggle("알림 받기", isOn: $isNotificationEnabled)
+        }
+    }
+
     // MARK: - Save
 
     private func save() {
@@ -175,6 +184,7 @@ struct HabitFormView: View {
         habit.color = color
         habit.schedule = schedule.sorted()
         habit.targetTime = timeString
+        habit.isNotificationEnabled = isNotificationEnabled
 
         onSave(habit)
         dismiss()
