@@ -6,7 +6,7 @@ struct ContentView: View {
 
     init(
         service: HabitServiceProtocol = FirestoreHabitService(),
-        notificationService: NotificationServiceProtocol = MockNotificationService() // TODO: UNNotificationService로 교체 (실기기 배포 시)
+        notificationService: NotificationServiceProtocol = LocalNotificationService()
     ) {
         self.service = service
         self.notificationService = notificationService
@@ -19,7 +19,7 @@ struct ContentView: View {
                     Label("오늘", systemImage: "checkmark.circle")
                 }
 
-            HabitListView(viewModel: HabitListViewModel(service: service))
+            HabitListView(viewModel: HabitListViewModel(service: service, notificationService: notificationService))
                 .tabItem {
                     Label("습관", systemImage: "list.bullet")
                 }
@@ -28,6 +28,15 @@ struct ContentView: View {
                 .tabItem {
                     Label("설정", systemImage: "gearshape")
                 }
+        }
+        .task {
+            // 알림 권한 요청
+            _ = try? await notificationService.requestAuthorization()
+
+            // 앱 실행 시 알림 동적 스케줄링
+            if let habits = try? await service.fetchHabits() {
+                try? await notificationService.rescheduleAll(habits: habits)
+            }
         }
     }
 }
