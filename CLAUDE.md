@@ -44,10 +44,10 @@ plan → test(RED) → firebase/ui(GREEN) → review → deploy
 ## 빌드 명령어
 ```bash
 # 테스트
-xcodebuild test -scheme HabitFlow -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme HabitFlow -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 
 # iOS 빌드
-xcodebuild -scheme HabitFlow-iOS build
+xcodebuild -scheme HabitFlow build
 
 # macOS 빌드
 xcodebuild -scheme HabitFlow-macOS -destination 'platform=macOS' build

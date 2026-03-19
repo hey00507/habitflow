@@ -6,7 +6,7 @@ struct HabitListView: View {
     @State private var editingHabit: Habit?
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             Group {
                 if viewModel.isLoading {
                     ProgressView()
@@ -30,11 +30,13 @@ struct HabitListView: View {
                 HabitFormView { habit in
                     Task { await viewModel.createHabit(habit) }
                 }
+                .adaptiveSheet()
             }
             .sheet(item: $editingHabit) { habit in
                 HabitFormView(habit: habit) { updated in
                     Task { await viewModel.updateHabit(updated) }
                 }
+                .adaptiveSheet()
             }
             .task {
                 await viewModel.loadHabits()

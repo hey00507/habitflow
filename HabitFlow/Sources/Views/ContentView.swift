@@ -13,8 +13,11 @@ struct ContentView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        MacContentView(service: service, notificationService: notificationService)
+        #else
         TabView {
-            TodayView(viewModel: TodayViewModel(service: service))
+            TodayView(viewModel: TodayViewModel(service: service, notificationService: notificationService))
                 .tabItem {
                     Label("오늘", systemImage: "checkmark.circle")
                 }
@@ -35,16 +38,72 @@ struct ContentView: View {
                 }
         }
         .task {
-            // 알림 권한 요청
             _ = try? await notificationService.requestAuthorization()
+            if let habits = try? await service.fetchHabits() {
+                try? await notificationService.rescheduleAll(habits: habits)
+            }
+        }
+        #endif
+    }
+}
 
-            // 앱 실행 시 알림 동적 스케줄링
+#if os(macOS)
+private enum MacTab: String, CaseIterable, Identifiable {
+    case today = "오늘"
+    case habits = "습관"
+    case heatmap = "잔디"
+    case settings = "설정"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .today: "checkmark.circle"
+        case .habits: "list.bullet"
+        case .heatmap: "square.grid.3x3"
+        case .settings: "gearshape"
+        }
+    }
+}
+
+struct MacContentView: View {
+    let service: HabitServiceProtocol
+    let notificationService: NotificationServiceProtocol
+    @State private var selectedTab: MacTab? = .today
+
+    var body: some View {
+        NavigationSplitView {
+            List(selection: $selectedTab) {
+                ForEach(MacTab.allCases) { tab in
+                    Label(tab.rawValue, systemImage: tab.icon)
+                        .tag(tab)
+                }
+            }
+            .navigationSplitViewColumnWidth(min: 160, ideal: 180)
+        } detail: {
+            switch selectedTab {
+            case .today:
+                TodayView(viewModel: TodayViewModel(service: service, notificationService: notificationService))
+            case .habits:
+                HabitListView(viewModel: HabitListViewModel(service: service, notificationService: notificationService))
+            case .heatmap:
+                HeatmapView(service: service)
+            case .settings:
+                SettingsView(notificationService: notificationService, habitService: service)
+            case nil:
+                TodayView(viewModel: TodayViewModel(service: service, notificationService: notificationService))
+            }
+        }
+        .frame(minWidth: 700, minHeight: 500)
+        .task {
+            _ = try? await notificationService.requestAuthorization()
             if let habits = try? await service.fetchHabits() {
                 try? await notificationService.rescheduleAll(habits: habits)
             }
         }
     }
 }
+#endif
 
 #Preview {
     ContentView(service: MockHabitService(), notificationService: MockNotificationService())

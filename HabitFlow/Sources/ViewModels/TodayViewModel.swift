@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 struct TodayHabitItem: Identifiable {
     let habit: Habit
@@ -17,9 +18,11 @@ final class TodayViewModel {
     private(set) var longestStreak: Int = 0
 
     private let service: HabitServiceProtocol
+    private let notificationService: NotificationServiceProtocol
 
-    init(service: HabitServiceProtocol) {
+    init(service: HabitServiceProtocol, notificationService: NotificationServiceProtocol = LocalNotificationService()) {
         self.service = service
+        self.notificationService = notificationService
     }
 
     var completionRate: Double {
@@ -66,6 +69,7 @@ final class TodayViewModel {
             }
             todayHabits = items
             await loadStreaks()
+            updateWidget()
         } catch {
             // 에러 시 빈 목록
         }
@@ -77,15 +81,21 @@ final class TodayViewModel {
 
         do {
             if item.isCompleted {
+                // 체크 해제 → 알림 다시 스케줄링
                 try await service.deleteLog(habitId: habitId, date: todayString)
+                try await rescheduleNotifications(for: item.habit)
             } else {
+                // 체크 완료 → 해당 습관의 오늘 알림 취소
                 let log = HabitLog(date: todayString, isCompleted: true)
                 try await service.createLog(log, habitId: habitId)
+                try await notificationService.cancelNotifications(for: habitId)
+                try await notificationService.cancelOverdueNotifications(for: habitId)
             }
 
             if let index = todayHabits.firstIndex(where: { $0.id == item.id }) {
                 todayHabits[index].isCompleted.toggle()
             }
+            updateWidget()
         } catch {
             // 에러 무시
         }
@@ -102,13 +112,23 @@ final class TodayViewModel {
                 todayHabits[index].isCompleted = true
                 todayHabits[index].memo = memo
             }
+            // 메모 추가 = 완료 → 알림 취소
+            try await notificationService.cancelNotifications(for: habitId)
+            try await notificationService.cancelOverdueNotifications(for: habitId)
+            updateWidget()
         } catch {
             // 에러 무시
         }
     }
 
+    private func rescheduleNotifications(for habit: Habit) async throws {
+        guard habit.isNotificationEnabled else { return }
+        let weekday = todayWeekday
+        try await notificationService.schedulePreNotification(for: habit, weekday: weekday)
+        try await notificationService.scheduleOverdueNotification(for: habit, weekday: weekday, delayMinutes: 60)
+    }
+
     private func loadStreaks() async {
-        // 모든 습관의 로그를 합쳐서 streak 계산
         var allLogs: [HabitLog] = []
         for item in todayHabits {
             guard let habitId = item.habit.id else { continue }
@@ -116,12 +136,31 @@ final class TodayViewModel {
                 allLogs.append(contentsOf: logs)
             }
         }
-        // 날짜별로 중복 제거 (하루에 여러 습관 완료해도 1일로 카운트)
         let uniqueLogs = Dictionary(grouping: allLogs, by: \.date)
             .map { HabitLog(date: $0.key, isCompleted: true) }
 
         currentStreak = StreakCalculator.currentStreak(from: uniqueLogs)
         longestStreak = StreakCalculator.longestStreak(from: uniqueLogs)
+    }
+
+    private func updateWidget() {
+        let widgetHabits = todayHabits.map {
+            WidgetHabitItem(
+                name: $0.habit.name,
+                icon: $0.habit.icon,
+                color: $0.habit.color,
+                isCompleted: $0.isCompleted
+            )
+        }
+        let data = WidgetHabitData(
+            totalCount: widgetHabits.count,
+            completedCount: widgetHabits.filter(\.isCompleted).count,
+            habits: widgetHabits,
+            heatmapEntries: [],
+            updatedAt: .now
+        )
+        WidgetDataStore.save(data)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func sortByTargetTime(_ a: Habit, _ b: Habit) -> Bool {

@@ -6,7 +6,7 @@ struct TodayView: View {
     @State private var memoText = ""
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             Group {
                 if viewModel.isLoading {
                     ProgressView()

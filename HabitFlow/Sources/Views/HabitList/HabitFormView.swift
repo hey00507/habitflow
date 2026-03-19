@@ -64,7 +64,13 @@ struct HabitFormView: View {
                 notificationSection
             }
             .navigationTitle(existingHabit == nil ? "새 습관" : "습관 수정")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
+            #if os(macOS)
+            .formStyle(.grouped)
+            .padding()
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") { dismiss() }
@@ -130,7 +136,7 @@ struct HabitFormView: View {
                         .font(.callout)
                         .fontWeight(.medium)
                         .frame(width: 36, height: 36)
-                        .background(schedule.contains(dayNumber) ? Color(hex: color) : Color(.systemGray5))
+                        .background(schedule.contains(dayNumber) ? Color(hex: color) : Color.gray.opacity(0.2))
                         .foregroundStyle(schedule.contains(dayNumber) ? .white : .primary)
                         .clipShape(Circle())
                         .onTapGesture {

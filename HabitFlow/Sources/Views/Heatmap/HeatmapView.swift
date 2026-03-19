@@ -4,15 +4,21 @@ struct HeatmapView: View {
     @State private var viewModel: HeatmapViewModel
 
     private static let greenColor = Color(hex: "#4CAF50")
+
+    #if os(macOS)
+    private static let cellSize: CGFloat = 16
+    private static let cellSpacing: CGFloat = 3
+    #else
     private static let cellSize: CGFloat = 12
     private static let cellSpacing: CGFloat = 2
+    #endif
 
     init(service: HabitServiceProtocol) {
         _viewModel = State(initialValue: HeatmapViewModel(service: service))
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     habitPicker

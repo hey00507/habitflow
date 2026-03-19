@@ -6,9 +6,10 @@ import Testing
 @MainActor
 struct TodayViewModelTests {
     let service = MockHabitService()
+    let notificationService = MockNotificationService()
 
     private func makeViewModel() -> TodayViewModel {
-        TodayViewModel(service: service)
+        TodayViewModel(service: service, notificationService: notificationService)
     }
 
     // MARK: - 요일 필터링
@@ -81,5 +82,44 @@ struct TodayViewModelTests {
 
         await vm.toggleCheck(vm.todayHabits[0])
         #expect(vm.completionRate == 0.5)
+    }
+
+    // MARK: - 체크 시 알림 취소
+
+    @Test("습관을 체크하면 해당 습관의 알림이 취소된다")
+    func test_toggleCheck_cancelsNotifications() async {
+        let todayWeekday = Calendar.current.component(.weekday, from: .now)
+        let habit = Habit(name: "운동", schedule: [todayWeekday], targetTime: "10:00")
+        _ = try? await service.createHabit(habit)
+
+        // 알림 스케줄링
+        let habits = try! await service.fetchHabits()
+        try? await notificationService.rescheduleAll(habits: habits)
+        let beforeCount = await notificationService.pendingNotificationCount()
+        #expect(beforeCount > 0)
+
+        let vm = makeViewModel()
+        await vm.loadToday()
+        await vm.toggleCheck(vm.todayHabits[0]) // 체크 → 알림 취소
+
+        let afterCount = await notificationService.pendingNotificationCount()
+        #expect(afterCount == 0)
+    }
+
+    @Test("체크 해제하면 알림이 다시 스케줄링된다")
+    func test_toggleCheck_uncheck_reschedulesNotifications() async {
+        let todayWeekday = Calendar.current.component(.weekday, from: .now)
+        let habit = Habit(name: "독서", schedule: [todayWeekday], targetTime: "09:00", isNotificationEnabled: true)
+        _ = try? await service.createHabit(habit)
+
+        let vm = makeViewModel()
+        await vm.loadToday()
+        await vm.toggleCheck(vm.todayHabits[0]) // 체크 → 알림 취소
+        let cancelledCount = await notificationService.pendingNotificationCount()
+        #expect(cancelledCount == 0)
+
+        await vm.toggleCheck(vm.todayHabits[0]) // 체크 해제 → 알림 복원
+        let restoredCount = await notificationService.pendingNotificationCount()
+        #expect(restoredCount > 0)
     }
 }
